@@ -23,7 +23,8 @@
 use std::io::{Read, Write};
 use std::convert::From;
 
-use rustc_serialize::json::{self, Object, Array, Json, Reader};
+use rustc_serialize::Encodable;
+use rustc_serialize::json::{self, Object, Array, Json, Reader, Encoder};
 
 use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
@@ -45,23 +46,23 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
     fn request(&mut self, request: Request) -> proto::Result<()> {
         let obj = request_to_json(request);
 
-        let encoded = try!(json::encode(&obj));
-        self.stream.write_all(encoded.as_bytes())
-            // FIXME: Some server implementation requires this token
-            .and(self.stream.write_all(b"\r\n"))
-            .and(self.stream.flush())
-            .map_err(From::from)
+        {
+            let mut encoder = Encoder::new(&mut self.stream);
+            try!(obj.encode(&mut encoder));
+        }
+
+        self.stream.flush().map_err(From::from)
     }
 
     fn batch_request(&mut self, requests: Vec<Request>) -> proto::Result<()> {
         let arr: Array = requests.into_iter().map(request_to_json).collect();
 
-        let encoded = try!(json::encode(&arr));
-        self.stream.write_all(encoded.as_bytes())
-            // FIXME: Some server implementation requires this token
-            .and(self.stream.write_all(b"\r\n"))
-            .and(self.stream.flush())
-            .map_err(From::from)
+        {
+            let mut encoder = Encoder::new(&mut self.stream);
+            try!(arr.encode(&mut encoder));
+        }
+
+        self.stream.flush().map_err(From::from)
     }
 }
 
@@ -181,23 +182,23 @@ impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
     fn response(&mut self, response: Response) -> proto::Result<()> {
         let obj = response_to_json(response);
 
-        let encoded = try!(json::encode(&obj));
-        self.stream.write_all(encoded.as_bytes())
-            // FIXME: Some implementation requires this token
-            .and(self.stream.write_all(b"\r\n"))
-            .and(self.stream.flush())
-            .map_err(From::from)
+        {
+            let mut encoder = Encoder::new(&mut self.stream);
+            try!(obj.encode(&mut encoder));
+        }
+
+        self.stream.flush().map_err(From::from)
     }
 
     fn batch_response(&mut self, responses: Vec<Response>) -> proto::Result<()> {
         let arr: Array = responses.into_iter().map(response_to_json).collect();
 
-        let encoded = try!(json::encode(&arr));
-        self.stream.write_all(encoded.as_bytes())
-            // FIXME: Some implementation requires this token
-            .and(self.stream.write_all(b"\r\n"))
-            .and(self.stream.flush())
-            .map_err(From::from)
+        {
+            let mut encoder = Encoder::new(&mut self.stream);
+            try!(arr.encode(&mut encoder));
+        }
+
+        self.stream.flush().map_err(From::from)
     }
 }
 
