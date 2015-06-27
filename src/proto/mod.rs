@@ -30,9 +30,9 @@ pub mod trans;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
-    method: String,
-    params: Option<Json>,
-    id: Json,
+    pub method: String,
+    pub params: Option<Json>,
+    pub id: Json,
 }
 
 impl Request {
@@ -47,9 +47,9 @@ impl Request {
 
 #[derive(Debug, Clone)]
 pub struct ProtocolError {
-    code: i64,
-    message: String,
-    data: Option<Json>,
+    pub code: i64,
+    pub message: String,
+    pub data: Option<Json>,
 }
 
 impl ToJson for ProtocolError {
@@ -77,9 +77,9 @@ impl ProtocolError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Response {
-    result: Option<Json>,
-    error: Option<Json>,
-    id: Json,
+    pub result: Option<Json>,
+    pub error: Option<Json>,
+    pub id: Json,
 }
 
 impl Response {
