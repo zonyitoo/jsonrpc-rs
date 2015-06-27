@@ -20,22 +20,23 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 //  DEALINGS IN THE SOFTWARE.
 
-use std::io::{self, Read, Write};
+use std::io;
 use std::convert::From;
 
-use rustc_serialize::json::{EncoderError, ParserError, Json};
+use rustc_serialize::json::{Object, EncoderError, ParserError, Json, ToJson};
 
 pub mod spec20;
+pub mod trans;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
     method: String,
-    params: Json,
+    params: Option<Json>,
     id: Json,
 }
 
 impl Request {
-    pub fn new(method: String, params: Json, id: Json) -> Request {
+    pub fn new(method: String, params: Option<Json>, id: Json) -> Request {
         Request {
             method: method,
             params: params,
@@ -49,6 +50,29 @@ pub struct ProtocolError {
     code: i64,
     message: String,
     data: Option<Json>,
+}
+
+impl ToJson for ProtocolError {
+    fn to_json(&self) -> Json {
+        let mut obj = Object::new();
+        obj.insert("code".to_owned(), Json::I64(self.code));
+        obj.insert("message".to_owned(), Json::String(self.message.clone()));
+        if let Some(data) = self.data.clone() {
+            obj.insert("data".to_owned(), data);
+        }
+
+        Json::Object(obj)
+    }
+}
+
+impl ProtocolError {
+    pub fn new(code: i64, message: String, data: Option<Json>) -> ProtocolError {
+        ProtocolError {
+            code: code,
+            message: message,
+            data: data,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,18 +92,6 @@ impl Response {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClientRequest {
-    Single(Request),
-    Batch(Vec<Request>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ServerResponse {
-    Single(Response),
-    Batch(Vec<Response>),
-}
-
 #[derive(Debug)]
 pub struct InternalError {
     kind: InternalErrorKind,
@@ -95,12 +107,26 @@ impl InternalError {
             detail: detail,
         }
     }
+
+    pub fn kind(&self) -> InternalErrorKind {
+        self.kind
+    }
+
+    pub fn desc(&self) -> &'static str {
+        self.desc
+    }
+
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_ref().map(|d| &d[..])
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum InternalErrorKind {
     InvalidVersion,
     InvalidResponse,
+    MethodNotFound,
+    InvalidRequest,
 }
 
 #[derive(Debug)]
@@ -110,6 +136,40 @@ pub enum Error {
     ParserError(ParserError),
     ProtocolError(ProtocolError),
     InternalError(InternalError),
+}
+
+impl Error {
+    pub fn to_protocol_error(&self) -> ProtocolError {
+        match self {
+            &Error::IoError(ref err) => {
+                ProtocolError::new(-32000, "I/O error".to_owned(),
+                    Some(Json::String(<io::Error as ::std::error::Error>::description(&err).to_owned())))
+            },
+            &Error::EncoderError(ref err) => {
+                ProtocolError::new(-32001, "Encoder error".to_owned(),
+                    Some(Json::String(<EncoderError as ::std::error::Error>::description(&err).to_owned())))
+            },
+            &Error::ParserError(ref err) => {
+                ProtocolError::new(-32700, "Parse error".to_owned(),
+                    Some(Json::String(<ParserError as ::std::error::Error>::description(&err).to_owned())))
+            },
+            &Error::ProtocolError(ref err) => err.clone(),
+            &Error::InternalError(ref err) => {
+                match err.kind() {
+                    InternalErrorKind::InvalidVersion
+                        | InternalErrorKind::InvalidRequest => {
+                        ProtocolError::new(-32600, "Invalid Request".to_owned(), None)
+                    },
+                    InternalErrorKind::InvalidResponse => {
+                        ProtocolError::new(-32603, "Internal error".to_owned(), None)
+                    },
+                    InternalErrorKind::MethodNotFound => {
+                        ProtocolError::new(-32601, "Method not found".to_owned(), None)
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
@@ -130,20 +190,4 @@ impl From<ParserError> for Error {
     fn from(err: ParserError) -> Error {
         Error::ParserError(err)
     }
-}
-
-pub trait ClientSender<W: Write> {
-    fn request(&mut self, request: &Request) -> Result<()>;
-    fn batch_request(&mut self, requests: &[Request]) -> Result<()>;
-}
-
-pub trait ClientReceiver<R: Read> {
-    fn get_response(&mut self) -> Result<ServerResponse>;
-}
-
-pub trait ServerProtocol {
-    fn response<W: Write>(writer: &mut W, response: &Response) -> Result<()>;
-    fn batch_response<W: Write>(writer: &mut W, responses: &[Response]) -> Result<()>;
-
-    fn request<R: Read>(reader: &mut R) -> Result<ClientRequest>;
 }

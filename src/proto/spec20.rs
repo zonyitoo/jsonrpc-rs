@@ -20,14 +20,14 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 //  DEALINGS IN THE SOFTWARE.
 
-use std::io::{self, Read, Write, CharsError};
+use std::io::{Read, Write};
 use std::convert::From;
 
-use rustc_serialize::Encodable;
-use rustc_serialize::json::{self, Object, Array, Json, Encoder, Builder};
+use rustc_serialize::json::{self, Object, Array, Json};
 
-use proto::{self, ClientSender, ClientReceiver, ServerProtocol, Request, Response, ClientRequest, ServerResponse};
+use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
+use proto::trans::{self, SendRequest, GetRequest, SendResponse, GetResponse};
 
 pub struct Client<'a, S: Read + Write + 'a> {
     stream: &'a mut S,
@@ -41,51 +41,48 @@ impl<'a, S: Read + Write + 'a> Client<'a, S> {
     }
 }
 
-impl<'a, S: Read + Write + 'a> ClientSender<S> for Client<'a, S> {
-    fn request(&mut self, request: &Request) -> proto::Result<()> {
-        let obj = request_to_json(&request);
+impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
+    fn request(&mut self, request: Request) -> proto::Result<()> {
+        let obj = request_to_json(request);
 
         let encoded = try!(json::encode(&obj));
         self.stream.write_all(encoded.as_bytes())
             .map_err(|err| From::from(err))
     }
 
-    fn batch_request(&mut self, requests: &[Request]) -> proto::Result<()> {
-        let arr: Array = requests.iter().map(request_to_json).collect();
+    fn batch_request(&mut self, requests: Vec<Request>) -> proto::Result<()> {
+        let arr: Array = requests.into_iter().map(request_to_json).collect();
 
         let encoded = try!(json::encode(&arr));
         self.stream.write_all(encoded.as_bytes())
             .map_err(|err| From::from(err))
     }
-
-
 }
 
-impl<'a, S: Read + Write + 'a> ClientReceiver<S> for Client<'a, S> {
-    fn get_response(&mut self) -> proto::Result<ServerResponse> {
-        let mut builder = Builder::new(self.stream.chars()
-                                             .take_while(|res| res.is_ok())
-                                             .map(|res| res.unwrap()));
-        let response = try!(builder.build());
+impl<'a, S: Read + Write + 'a> GetResponse for Client<'a, S> {
+    fn get_response(&mut self) -> proto::Result<trans::Response> {
+        let response = try!(Json::from_reader(&mut self.stream));
 
         response_from_json(response)
     }
 }
 
-fn request_to_json(request: &Request) -> Json {
+fn request_to_json(request: Request) -> Json {
     let mut obj = Object::new();
     obj.insert("jsonrpc".to_owned(), Json::String("2.0".to_owned()));
-    obj.insert("method".to_owned(), Json::String(request.method.clone()));
-    obj.insert("params".to_owned(), request.params.clone());
-    obj.insert("id".to_owned(), request.id.clone());
+    obj.insert("method".to_owned(), Json::String(request.method));
+    if let Some(params) = request.params {
+        obj.insert("params".to_owned(), params);
+    }
+    obj.insert("id".to_owned(), request.id);
 
     Json::Object(obj)
 }
 
-fn response_from_json(resp: Json) -> proto::Result<ServerResponse> {
+fn response_from_json(resp: Json) -> proto::Result<trans::Response> {
     match resp {
         Json::Object(obj) => {
-            json_to_response(obj).map(ServerResponse::Single)
+            json_to_response(obj).map(trans::Response::Single)
         },
         Json::Array(arr) => {
             let mut batch = Vec::with_capacity(arr.len());
@@ -103,7 +100,7 @@ fn response_from_json(resp: Json) -> proto::Result<ServerResponse> {
                 }
             }
 
-            Ok(ServerResponse::Batch(batch))
+            Ok(trans::Response::Batch(batch))
         },
         _ => {
             let ierr = InternalError::new(InternalErrorKind::InvalidResponse,
@@ -161,36 +158,189 @@ fn json_to_response(mut obj: json::Object) -> proto::Result<Response> {
     Ok(Response::new(result, error, id))
 }
 
+pub struct Server<'a, S: Read + Write + 'a> {
+    stream: &'a mut S,
+}
+
+impl<'a, S: Read + Write + 'a> Server<'a, S> {
+    pub fn new(s: &'a mut S) -> Server<'a, S> {
+        Server {
+            stream: s,
+        }
+    }
+}
+
+impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
+    fn response(&mut self, response: Response) -> proto::Result<()> {
+        let obj = response_to_json(response);
+
+        let encoded = try!(json::encode(&obj));
+        self.stream.write_all(encoded.as_bytes())
+            .map_err(|err| From::from(err))
+    }
+
+    fn batch_response(&mut self, responses: Vec<Response>) -> proto::Result<()> {
+        let arr: Array = responses.into_iter().map(response_to_json).collect();
+
+        let encoded = try!(json::encode(&arr));
+        self.stream.write_all(encoded.as_bytes())
+            .map_err(|err| From::from(err))
+    }
+}
+
+impl<'a, S: Read + Write + 'a> GetRequest for Server<'a, S> {
+    fn get_request(&mut self) -> proto::Result<trans::Request> {
+        let request = try!(Json::from_reader(&mut self.stream));
+        request_from_json(request)
+    }
+}
+
+fn response_to_json(resp: Response) -> Json {
+    let mut obj = json::Object::new();
+    obj.insert("jsonrpc".to_owned(), Json::String("2.0".to_owned()));
+
+    if let Some(result) = resp.result {
+        obj.insert("result".to_owned(), result);
+    }
+
+    if let Some(error) = resp.error {
+        obj.insert("error".to_owned(), error);
+    }
+
+    obj.insert("id".to_owned(), resp.id);
+
+    Json::Object(obj)
+}
+
+fn json_to_request(mut obj: json::Object) -> proto::Result<Request> {
+    try!(check_version(&obj));
+
+    let method = match obj.remove("method") {
+        Some(Json::String(m)) => m,
+        Some(obj) => {
+            let ierr = InternalError::new(InternalErrorKind::InvalidRequest,
+                                          "`method` must be a String",
+                                          Some(format!("Expecting method, but found {:?}", obj)));
+            return Err(proto::Error::InternalError(ierr));
+        },
+        None => {
+            let ierr = InternalError::new(InternalErrorKind::InvalidRequest,
+                                          "`method` is required",
+                                          None);
+            return Err(proto::Error::InternalError(ierr));
+        }
+    };
+
+    let params = obj.remove("params");
+
+    let id = match obj.remove("id") {
+        Some(id) => id,
+        None => {
+            let ierr = InternalError::new(InternalErrorKind::InvalidRequest,
+                                          "`id` is required",
+                                          None);
+            return Err(proto::Error::InternalError(ierr));
+        }
+    };
+
+    Ok(Request::new(method, params, id))
+}
+
+fn request_from_json(req: Json) -> proto::Result<trans::Request> {
+    match req {
+        Json::Object(obj) => {
+            json_to_request(obj).map(trans::Request::Single)
+        },
+        Json::Array(arr) => {
+            let mut batch = Vec::with_capacity(arr.len());
+            for obj in arr.into_iter() {
+                match obj {
+                    Json::Object(obj) =>
+                        batch.push(try!(json_to_request(obj))),
+                    _ => {
+                        let ierr = InternalError::new(InternalErrorKind::InvalidResponse,
+                                                      "Invalid JSON-RPC response",
+                                                      Some(format!("Expecting a Response object, but found {:?}",
+                                                                   obj)));
+                        return Err(proto::Error::InternalError(ierr));
+                    }
+                }
+            }
+
+            Ok(trans::Request::Batch(batch))
+        },
+        _ => {
+            let ierr = InternalError::new(InternalErrorKind::InvalidResponse,
+                                          "Invalid JSON-RPC response",
+                                          Some(format!("Expecting JSON-RPC response, but found {:?}", req)));
+            Err(proto::Error::InternalError(ierr))
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use std::io::{Cursor, Read, Write};
+    use std::io::{Cursor, Write, Seek, SeekFrom};
 
-    use proto::{Request, ClientSender, ClientReceiver, ServerResponse};
+    use proto::{Request, Response};
+    use proto::trans::{self, SendRequest, GetRequest, GetResponse, SendResponse};
 
     use rustc_serialize::json::{Array, Json};
 
-    use super::Client;
+    use super::{Client, Server};
 
     #[test]
-    fn test_spec20_client_request() {
-        use std::str;
-
+    fn test_spec20_request() {
         let params: Array = vec![
             Json::String("ping".to_owned()),
         ];
 
         let request = Request::new("echo".to_owned(),
-                                   Json::Array(params),
+                                   Some(Json::Array(params)),
                                    Json::U64(1));
 
         let mut buf = Cursor::new(vec![]);
 
         {
             let mut client = Client::new(&mut buf);
-            client.request(&request).unwrap();
+            client.request(request.clone()).unwrap();
         }
+        buf.flush().unwrap();
 
         let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"params\":[\"ping\"]}";
         assert_eq!(&expected[..], &buf.get_ref()[..]);
+
+        let request_svr = {
+            buf.seek(SeekFrom::Start(0)).unwrap();
+            let mut server = Server::new(&mut buf);
+            server.get_request().unwrap()
+        };
+
+        assert_eq!(trans::Request::Single(request), request_svr);
+    }
+
+    #[test]
+    fn test_spec20_server_response() {
+        let result: Json = Json::String("pong".to_owned());
+
+        let response = Response::new(Some(result), None, Json::U64(1));
+
+        let mut buf = Cursor::new(vec![]);
+
+        {
+            let mut server = Server::new(&mut buf);
+            server.response(response.clone()).unwrap();
+        }
+
+        let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":\"pong\"}";
+        assert_eq!(&expected[..], &buf.get_ref()[..]);
+
+        let response_cli = {
+            buf.seek(SeekFrom::Start(0)).unwrap();
+            let mut client = Client::new(&mut buf);
+            client.get_response().unwrap()
+        };
+
+        assert_eq!(trans::Response::Single(response), response_cli);
     }
 }

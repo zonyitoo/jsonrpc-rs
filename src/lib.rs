@@ -1,5 +1,3 @@
-#![feature(io)]
-
 extern crate rustc_serialize;
 
 use rustc_serialize::Encodable;
