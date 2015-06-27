@@ -25,6 +25,8 @@ use std::convert::From;
 
 use rustc_serialize::json::{Object, EncoderError, ParserError, Json, ToJson};
 
+pub use self::spec20::{Client, Server};
+
 pub mod spec20;
 pub mod trans;
 
@@ -136,6 +138,7 @@ pub enum Error {
     ParserError(ParserError),
     ProtocolError(ProtocolError),
     InternalError(InternalError),
+    NotUtf8,
 }
 
 impl Error {
@@ -167,7 +170,8 @@ impl Error {
                         ProtocolError::new(-32601, "Method not found".to_owned(), None)
                     }
                 }
-            }
+            },
+            &Error::NotUtf8 => ProtocolError::new(-32600, "Invalid Request".to_owned(), None)
         }
     }
 }
@@ -189,5 +193,14 @@ impl From<EncoderError> for Error {
 impl From<ParserError> for Error {
     fn from(err: ParserError) -> Error {
         Error::ParserError(err)
+    }
+}
+
+impl From<io::CharsError> for Error {
+    fn from(err: io::CharsError) -> Error {
+        match err {
+            io::CharsError::Other(err) => Error::IoError(err),
+            io::CharsError::NotUtf8 => Error::NotUtf8,
+        }
     }
 }

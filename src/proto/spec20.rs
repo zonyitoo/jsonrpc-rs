@@ -23,7 +23,7 @@
 use std::io::{Read, Write};
 use std::convert::From;
 
-use rustc_serialize::json::{self, Object, Array, Json};
+use rustc_serialize::json::{self, Object, Array, Json, Reader};
 
 use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
@@ -47,7 +47,10 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
 
         let encoded = try!(json::encode(&obj));
         self.stream.write_all(encoded.as_bytes())
-            .map_err(|err| From::from(err))
+            // FIXME: Some server implementation requires this token
+            .and(self.stream.write_all(b"\r\n"))
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 
     fn batch_request(&mut self, requests: Vec<Request>) -> proto::Result<()> {
@@ -55,13 +58,17 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
 
         let encoded = try!(json::encode(&arr));
         self.stream.write_all(encoded.as_bytes())
-            .map_err(|err| From::from(err))
+            // FIXME: Some server implementation requires this token
+            .and(self.stream.write_all(b"\r\n"))
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 }
 
 impl<'a, S: Read + Write + 'a> GetResponse for Client<'a, S> {
     fn get_response(&mut self) -> proto::Result<trans::Response> {
-        let response = try!(Json::from_reader(&mut self.stream));
+        let mut reader = try!(Reader::new(&mut self.stream));
+        let response = try!(reader.next());
 
         response_from_json(response)
     }
@@ -116,7 +123,7 @@ fn check_version(obj: &json::Object) -> proto::Result<()> {
         None => {
             let ierr = InternalError::new(InternalErrorKind::InvalidVersion,
                                           "Invalid JSON-RPC version",
-                                          Some("Missing `jsonpc` field".to_owned()));
+                                          Some("Missing `jsonrpc` field".to_owned()));
             Err(proto::Error::InternalError(ierr))
         },
         Some(&Json::String(ref ver)) => {
@@ -176,7 +183,10 @@ impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
 
         let encoded = try!(json::encode(&obj));
         self.stream.write_all(encoded.as_bytes())
-            .map_err(|err| From::from(err))
+            // FIXME: Some implementation requires this token
+            .and(self.stream.write_all(b"\r\n"))
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 
     fn batch_response(&mut self, responses: Vec<Response>) -> proto::Result<()> {
@@ -184,7 +194,10 @@ impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
 
         let encoded = try!(json::encode(&arr));
         self.stream.write_all(encoded.as_bytes())
-            .map_err(|err| From::from(err))
+            // FIXME: Some implementation requires this token
+            .and(self.stream.write_all(b"\r\n"))
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 }
 

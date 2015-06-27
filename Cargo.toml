@@ -7,4 +7,8 @@ authors = ["Y. T. Chung <zonyitoo@gmail.com>"]
 name = "jsonrpc"
 
 [dependencies]
-rustc-serialize = "*"
+#rustc-serialize = "*"
+
+[dependencies.rustc-serialize]
+#git = "https://github.com/rust-lang/rustc-serialize.git"
+git = "https://github.com/zonyitoo/rustc-serialize.git"
