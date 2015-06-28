@@ -29,6 +29,7 @@ use proto::{self, InternalErrorKind, InternalError};
 
 pub mod client;
 pub mod server;
+pub mod errors;
 
 fn check_version(obj: &json::Object) -> proto::Result<()> {
     match obj.get("jsonrpc") {
@@ -87,7 +88,7 @@ mod test {
         }
         buf.flush().unwrap();
 
-        let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"params\":[\"ping\"]}";
+        let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"params\":[\"ping\"]}\r\n";
         assert_eq!(&expected[..], &buf.get_ref()[..]);
 
         let request_svr = {
@@ -112,7 +113,7 @@ mod test {
             server.response(response.clone()).unwrap();
         }
 
-        let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":\"pong\"}";
+        let expected = b"{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":\"pong\"}\r\n";
         assert_eq!(&expected[..], &buf.get_ref()[..]);
 
         let response_cli = {
