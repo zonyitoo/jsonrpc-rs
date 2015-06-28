@@ -17,7 +17,15 @@ fn echo(req: proto::Request) -> Response {
 }
 
 fn add(req: proto::Request) -> Response {
-    let params = req.params.unwrap();
+    let params = match req.params {
+        Some(Json::Array(ref p)) if p.len() == 2 => p,
+        _ => {
+            return Response::new(None,
+                                 Some(errors::InvalidParams::new().to_json()),
+                                 req.id);
+        }
+    };
+
     let a = match params[0].as_i64() {
         Some(x) => x,
         None => {
@@ -26,6 +34,7 @@ fn add(req: proto::Request) -> Response {
                                  req.id);
         }
     };
+
     let b = match params[1].as_i64() {
         Some(x) => x,
         None => {
