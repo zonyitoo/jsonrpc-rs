@@ -97,9 +97,12 @@ impl<'a, W: Write + 'a> SendResponse for ServerWriter<'a, W> {
 }
 
 impl<'a, R: Read + 'a> GetRequest for ServerReader<'a, R> {
-    fn get_request(&mut self) -> proto::Result<ClientRequest> {
-        let request = try!(Json::from_reader(&mut self.reader));
-        request_from_json(request)
+    fn get_request(&mut self) -> proto::Result<Option<ClientRequest>> {
+        let request = match Json::from_reader(&mut self.reader) {
+            Some(req) => try!(req),
+            None => return Ok(None),
+        };
+        request_from_json(request).map(|r| Some(r))
     }
 }
 
@@ -114,7 +117,7 @@ impl<'a, S: Read + Write + 'a> SendResponse for ServerStream<'a, S> {
 }
 
 impl<'a, S: Read + Write + 'a> GetRequest for ServerStream<'a, S> {
-    fn get_request(&mut self) -> proto::Result<ClientRequest> {
+    fn get_request(&mut self) -> proto::Result<Option<ClientRequest>> {
         ServerReader::new(&mut self.stream).get_request()
     }
 }

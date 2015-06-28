@@ -68,7 +68,7 @@ mod test {
 
     use rustc_serialize::json::{Array, Json};
 
-    use super::{Client, Server};
+    use super::{ClientWriter, ClientReader, ServerWriter, ServerReader};
 
     #[test]
     fn test_spec20_request() {
@@ -83,7 +83,7 @@ mod test {
         let mut buf = Cursor::new(vec![]);
 
         {
-            let mut client = Client::new(&mut buf);
+            let mut client = ClientWriter::new(&mut buf);
             client.request(request.clone()).unwrap();
         }
         buf.flush().unwrap();
@@ -93,8 +93,8 @@ mod test {
 
         let request_svr = {
             buf.seek(SeekFrom::Start(0)).unwrap();
-            let mut server = Server::new(&mut buf);
-            server.get_request().unwrap()
+            let mut server = ServerReader::new(&mut buf);
+            server.get_request().unwrap().unwrap()
         };
 
         assert_eq!(ClientRequest::Single(request), request_svr);
@@ -109,7 +109,7 @@ mod test {
         let mut buf = Cursor::new(vec![]);
 
         {
-            let mut server = Server::new(&mut buf);
+            let mut server = ServerWriter::new(&mut buf);
             server.response(response.clone()).unwrap();
         }
 
@@ -118,8 +118,8 @@ mod test {
 
         let response_cli = {
             buf.seek(SeekFrom::Start(0)).unwrap();
-            let mut client = Client::new(&mut buf);
-            client.get_response().unwrap()
+            let mut client = ClientReader::new(&mut buf);
+            client.get_response().unwrap().unwrap()
         };
 
         assert_eq!(ServerResponse::Single(response), response_cli);

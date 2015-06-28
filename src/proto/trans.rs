@@ -40,7 +40,7 @@ pub trait SendRequest {
 }
 
 pub trait GetResponse {
-    fn get_response(&mut self) -> Result<ServerResponse>;
+    fn get_response(&mut self) -> Result<Option<ServerResponse>>;
 }
 
 pub trait SendResponse {
@@ -49,5 +49,5 @@ pub trait SendResponse {
 }
 
 pub trait GetRequest {
-    fn get_request(&mut self) -> Result<ClientRequest>;
+    fn get_request(&mut self) -> Result<Option<ClientRequest>>;
 }

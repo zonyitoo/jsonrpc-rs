@@ -1,6 +1,10 @@
 extern crate jsonrpc;
 extern crate rustc_serialize;
 extern crate bufstream;
+#[macro_use]
+extern crate log;
+extern crate fern;
+extern crate chrono;
 
 use std::net::TcpListener;
 use std::thread;
@@ -8,6 +12,8 @@ use std::thread;
 use rustc_serialize::json::Json;
 
 use bufstream::BufStream;
+
+use chrono::Local;
 
 use jsonrpc::proto::{Request, Response};
 use jsonrpc::proto::trans::{GetRequest, SendResponse, ClientRequest};
@@ -43,6 +49,7 @@ fn add(req: Request) -> Response {
 }
 
 fn dispatcher(req: Request) -> Response {
+    debug!("Dispatching for request: {:?}", req);
     match &req.method[..] {
         "echo" => echo(req),
         "add" => add(req),
@@ -51,31 +58,54 @@ fn dispatcher(req: Request) -> Response {
 }
 
 fn main() {
+    let logger_config = fern::DispatchConfig {
+        format: Box::new(move|msg: &str, level: &log::LogLevel, location: &log::LogLocation| {
+            format!("[{}][{}] [{}] {}", Local::now().format("%Y-%m-%d][%H:%M:%S"),
+                    level, location.__module_path, msg)
+        }),
+        output: vec![fern::OutputConfig::stderr()],
+        level: log::LogLevelFilter::Trace
+    };
+
+    fern::init_global_logger(logger_config, log::LogLevelFilter::Debug).unwrap();
+
     let acceptor = TcpListener::bind("127.0.0.1:8007").unwrap();
 
     for incoming in acceptor.incoming() {
         let stream = incoming.unwrap();
 
         thread::spawn(move|| {
+            let peer_addr = stream.peer_addr().unwrap();
+            info!("Accepted new connection {:?} ...", peer_addr);
             let mut stream = BufStream::new(stream);
-            println!("Accepted new connection ...");
-            let mut server = ServerStream::new(&mut stream);
+            {
+                let mut server = ServerStream::new(&mut stream);
 
-            loop {
-                match server.get_request() {
-                    Ok(ClientRequest::Single(req)) => {
-                        let resp = dispatcher(req);
-                        server.response(resp).unwrap();
-                    },
-                    Ok(ClientRequest::Batch(reqs)) => {
-                        let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
-                        server.batch_response(resps).unwrap();
-                    },
-                    Err(..) => {
-                        break;
+                loop {
+                    match server.get_request() {
+                        Ok(Some(ClientRequest::Single(req))) => {
+                            let resp = dispatcher(req);
+                            debug!("Send response to {:?}: {:?}", peer_addr, resp);
+                            server.response(resp).unwrap();
+                        },
+                        Ok(Some(ClientRequest::Batch(reqs))) => {
+                            let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
+                            debug!("Send response to {:?}: {:?}", peer_addr, resps);
+                            server.batch_response(resps).unwrap();
+                        },
+                        Ok(None) => {
+                            // EOF
+                            break;
+                        },
+                        Err(err) => {
+                            error!("Err {:?}: {:?}", peer_addr, err);
+                            break;
+                        }
                     }
                 }
             }
+
+            info!("Client {:?} finished", peer_addr);
         });
     }
 }
