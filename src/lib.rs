@@ -9,6 +9,6 @@ pub use error::{Error, RpcError};
 
 pub mod error;
 pub mod proto;
-pub use proto::spec20::client;
+// pub mod client;
 
 pub type RpcResult<T: Encodable> = Result<T, Error>;
