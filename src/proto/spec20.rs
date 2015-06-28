@@ -24,7 +24,7 @@ use std::io::{Read, Write};
 use std::convert::From;
 
 use rustc_serialize::Encodable;
-use rustc_serialize::json::{self, Object, Array, Json, Reader, Encoder};
+use rustc_serialize::json::{self, Object, Array, Json, Encoder};
 
 use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
@@ -51,7 +51,9 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
             try!(obj.encode(&mut encoder));
         }
 
-        self.stream.flush().map_err(From::from)
+        self.stream.write_all(b"\r\n")
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 
     fn batch_request(&mut self, requests: Vec<Request>) -> proto::Result<()> {
@@ -62,14 +64,15 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
             try!(arr.encode(&mut encoder));
         }
 
-        self.stream.flush().map_err(From::from)
+        self.stream.write_all(b"\r\n")
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 }
 
 impl<'a, S: Read + Write + 'a> GetResponse for Client<'a, S> {
     fn get_response(&mut self) -> proto::Result<trans::Response> {
-        let mut reader = try!(Reader::new(&mut self.stream));
-        let response = try!(reader.next());
+        let response = try!(Json::from_reader(&mut self.stream));
 
         response_from_json(response)
     }
@@ -187,7 +190,9 @@ impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
             try!(obj.encode(&mut encoder));
         }
 
-        self.stream.flush().map_err(From::from)
+        self.stream.write_all(b"\r\n")
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 
     fn batch_response(&mut self, responses: Vec<Response>) -> proto::Result<()> {
@@ -198,7 +203,9 @@ impl<'a, S: Read + Write + 'a> SendResponse for Server<'a, S> {
             try!(arr.encode(&mut encoder));
         }
 
-        self.stream.flush().map_err(From::from)
+        self.stream.write_all(b"\r\n")
+            .and(self.stream.flush())
+            .map_err(From::from)
     }
 }
 
