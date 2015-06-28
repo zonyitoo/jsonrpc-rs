@@ -12,7 +12,8 @@ use bufstream::BufStream;
 
 use chrono::UTC;
 
-use jsonrpc::proto::{Request, Client};
+use jsonrpc::proto::Request;
+use jsonrpc::proto::spec20::ClientStream;
 use jsonrpc::proto::trans::{SendRequest, GetResponse};
 
 fn generate_id() -> u64 {
@@ -21,7 +22,7 @@ fn generate_id() -> u64 {
 
 fn main() {
     let mut stream = BufStream::new(TcpStream::connect("127.0.0.1:8007").unwrap());
-    let mut client = Client::new(&mut stream);
+    let mut client = ClientStream::new(&mut stream);
 
     {
 

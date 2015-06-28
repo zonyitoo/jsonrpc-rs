@@ -3,20 +3,21 @@ extern crate rustc_serialize;
 extern crate bufstream;
 
 use std::net::TcpListener;
+use std::thread;
 
 use rustc_serialize::json::Json;
 
 use bufstream::BufStream;
 
-use jsonrpc::proto::{self, Response, Server};
+use jsonrpc::proto::{Request, Response};
 use jsonrpc::proto::trans::{GetRequest, SendResponse, ClientRequest};
-use jsonrpc::proto::spec20::errors;
+use jsonrpc::proto::spec20::{errors, ServerStream};
 
-fn echo(req: proto::Request) -> Response {
+fn echo(req: Request) -> Response {
     Response::result(req.params, req.id)
 }
 
-fn add(req: proto::Request) -> Response {
+fn add(req: Request) -> Response {
     let params = match req.params {
         Some(Json::Array(ref p)) if p.len() == 2 => p,
         _ => {
@@ -41,7 +42,7 @@ fn add(req: proto::Request) -> Response {
     Response::result(Json::I64(a + b), req.id)
 }
 
-fn dispatcher(req: proto::Request) -> Response {
+fn dispatcher(req: Request) -> Response {
     match &req.method[..] {
         "echo" => echo(req),
         "add" => add(req),
@@ -54,24 +55,27 @@ fn main() {
 
     for incoming in acceptor.incoming() {
         let stream = incoming.unwrap();
-        let mut stream = BufStream::new(stream);
-        println!("Accepted new connection ...");
-        let mut server = Server::new(&mut stream);
 
-        loop {
-            match server.get_request() {
-                Ok(ClientRequest::Single(req)) => {
-                    let resp = dispatcher(req);
-                    server.response(resp).unwrap();
-                },
-                Ok(ClientRequest::Batch(reqs)) => {
-                    let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
-                    server.batch_response(resps).unwrap();
-                },
-                Err(..) => {
-                    break;
+        thread::spawn(move|| {
+            let mut stream = BufStream::new(stream);
+            println!("Accepted new connection ...");
+            let mut server = ServerStream::new(&mut stream);
+
+            loop {
+                match server.get_request() {
+                    Ok(ClientRequest::Single(req)) => {
+                        let resp = dispatcher(req);
+                        server.response(resp).unwrap();
+                    },
+                    Ok(ClientRequest::Batch(reqs)) => {
+                        let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
+                        server.batch_response(resps).unwrap();
+                    },
+                    Err(..) => {
+                        break;
+                    }
                 }
             }
-        }
+        });
     }
 }

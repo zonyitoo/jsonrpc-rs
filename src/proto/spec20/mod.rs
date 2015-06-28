@@ -20,8 +20,8 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 //  DEALINGS IN THE SOFTWARE.
 
-pub use self::client::Client;
-pub use self::server::Server;
+pub use self::client::{ClientReader, ClientWriter, ClientStream};
+pub use self::server::{ServerReader, ServerWriter, ServerStream};
 
 use rustc_serialize::json::{self, Object, Json};
 

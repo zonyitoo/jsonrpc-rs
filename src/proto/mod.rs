@@ -25,8 +25,6 @@ use std::convert::From;
 
 use rustc_serialize::json::{Object, EncoderError, ParserError, Json, ToJson};
 
-pub use self::spec20::{Client, Server};
-
 pub mod spec20;
 pub mod trans;
 

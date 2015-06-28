@@ -32,29 +32,53 @@ use proto::trans::{ServerResponse, SendRequest, GetResponse};
 
 use proto::spec20::check_version;
 
-pub struct Client<'a, S: Read + Write + 'a> {
+pub struct ClientStream<'a, S: Read + Write + 'a> {
     stream: &'a mut S,
 }
 
-impl<'a, S: Read + Write + 'a> Client<'a, S> {
-    pub fn new(stream: &'a mut S) -> Client<'a, S> {
-        Client {
+pub struct ClientReader<'a, R: Read + 'a> {
+    reader: &'a mut R,
+}
+
+pub struct ClientWriter<'a, W: Write + 'a> {
+    writer: &'a mut W
+}
+
+impl<'a, S: Read + Write + 'a> ClientStream<'a, S> {
+    pub fn new(stream: &'a mut S) -> ClientStream<'a, S> {
+        ClientStream {
             stream: stream,
         }
     }
 }
 
-impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
+impl<'a, R: Read + 'a> ClientReader<'a, R> {
+    pub fn new(reader: &'a mut R) -> ClientReader<'a, R> {
+        ClientReader {
+            reader: reader,
+        }
+    }
+}
+
+impl<'a, W: Write + 'a> ClientWriter<'a, W> {
+    pub fn new(writer: &'a mut W) -> ClientWriter<'a, W> {
+        ClientWriter {
+            writer: writer,
+        }
+    }
+}
+
+impl<'a, W: Write + 'a> SendRequest for ClientWriter<'a, W> {
     fn request(&mut self, request: Request) -> proto::Result<()> {
         let obj = request_to_json(request);
 
         {
-            let mut encoder = Encoder::new(&mut self.stream);
+            let mut encoder = Encoder::new(&mut self.writer);
             try!(obj.encode(&mut encoder));
         }
 
-        self.stream.write_all(b"\r\n")
-            .and(self.stream.flush())
+        self.writer.write_all(b"\r\n")
+            .and(self.writer.flush())
             .map_err(From::from)
     }
 
@@ -62,21 +86,37 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
         let arr: Array = requests.into_iter().map(request_to_json).collect();
 
         {
-            let mut encoder = Encoder::new(&mut self.stream);
+            let mut encoder = Encoder::new(&mut self.writer);
             try!(arr.encode(&mut encoder));
         }
 
-        self.stream.write_all(b"\r\n")
-            .and(self.stream.flush())
+        self.writer.write_all(b"\r\n")
+            .and(self.writer.flush())
             .map_err(From::from)
     }
 }
 
-impl<'a, S: Read + Write + 'a> GetResponse for Client<'a, S> {
+impl<'a, R: Read + 'a> GetResponse for ClientReader<'a, R> {
     fn get_response(&mut self) -> proto::Result<ServerResponse> {
-        let response = try!(Json::from_reader(&mut self.stream));
+        let response = try!(Json::from_reader(&mut self.reader));
 
         response_from_json(response)
+    }
+}
+
+impl<'a, S: Read + Write + 'a> SendRequest for ClientStream<'a, S> {
+    fn request(&mut self, request: Request) -> proto::Result<()> {
+        ClientWriter::new(&mut self.stream).request(request)
+    }
+
+    fn batch_request(&mut self, requests: Vec<Request>) -> proto::Result<()> {
+        ClientWriter::new(&mut self.stream).batch_request(requests)
+    }
+}
+
+impl<'a, S: Read + Write + 'a> GetResponse for ClientStream<'a, S> {
+    fn get_response(&mut self) -> proto::Result<ServerResponse> {
+        ClientReader::new(&mut self.stream).get_response()
     }
 }
 
