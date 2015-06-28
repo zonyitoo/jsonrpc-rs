@@ -20,34 +20,34 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 //  DEALINGS IN THE SOFTWARE.
 
-use proto::{self, Result};
+use proto::{Request, Response, Result};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Request {
-    Single(proto::Request),
-    Batch(Vec<proto::Request>),
+pub enum ClientRequest {
+    Single(Request),
+    Batch(Vec<Request>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Response {
-    Single(proto::Response),
-    Batch(Vec<proto::Response>),
+pub enum ServerResponse {
+    Single(Response),
+    Batch(Vec<Response>),
 }
 
 pub trait SendRequest {
-    fn request(&mut self, request: proto::Request) -> Result<()>;
-    fn batch_request(&mut self, requests: Vec<proto::Request>) -> Result<()>;
+    fn request(&mut self, request: Request) -> Result<()>;
+    fn batch_request(&mut self, requests: Vec<Request>) -> Result<()>;
 }
 
 pub trait GetResponse {
-    fn get_response(&mut self) -> Result<Response>;
+    fn get_response(&mut self) -> Result<ServerResponse>;
 }
 
 pub trait SendResponse {
-    fn response(&mut self, response: proto::Response) -> Result<()>;
-    fn batch_response(&mut self, responses: Vec<proto::Response>) -> Result<()>;
+    fn response(&mut self, response: Response) -> Result<()>;
+    fn batch_response(&mut self, responses: Vec<Response>) -> Result<()>;
 }
 
 pub trait GetRequest {
-    fn get_request(&mut self) -> Result<Request>;
+    fn get_request(&mut self) -> Result<ClientRequest>;
 }

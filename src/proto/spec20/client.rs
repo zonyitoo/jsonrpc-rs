@@ -28,7 +28,7 @@ use rustc_serialize::json::{self, Object, Array, Json, Encoder};
 
 use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
-use proto::trans::{self, SendRequest, GetResponse};
+use proto::trans::{ServerResponse, SendRequest, GetResponse};
 
 use proto::spec20::check_version;
 
@@ -73,7 +73,7 @@ impl<'a, S: Read + Write + 'a> SendRequest for Client<'a, S> {
 }
 
 impl<'a, S: Read + Write + 'a> GetResponse for Client<'a, S> {
-    fn get_response(&mut self) -> proto::Result<trans::Response> {
+    fn get_response(&mut self) -> proto::Result<ServerResponse> {
         let response = try!(Json::from_reader(&mut self.stream));
 
         response_from_json(response)
@@ -92,10 +92,10 @@ fn request_to_json(request: Request) -> Json {
     Json::Object(obj)
 }
 
-fn response_from_json(resp: Json) -> proto::Result<trans::Response> {
+fn response_from_json(resp: Json) -> proto::Result<ServerResponse> {
     match resp {
         Json::Object(obj) => {
-            json_to_response(obj).map(trans::Response::Single)
+            json_to_response(obj).map(ServerResponse::Single)
         },
         Json::Array(arr) => {
             let mut batch = Vec::with_capacity(arr.len());
@@ -113,7 +113,7 @@ fn response_from_json(resp: Json) -> proto::Result<trans::Response> {
                 }
             }
 
-            Ok(trans::Response::Batch(batch))
+            Ok(ServerResponse::Batch(batch))
         },
         _ => {
             let ierr = InternalError::new(InternalErrorKind::InvalidResponse,
