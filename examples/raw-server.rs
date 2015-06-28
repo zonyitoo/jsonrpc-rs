@@ -8,8 +8,9 @@ use rustc_serialize::json::{Json, ToJson};
 
 use bufstream::BufStream;
 
-use jsonrpc::proto::{self, Response, Server, ProtocolError};
+use jsonrpc::proto::{self, Response, Server};
 use jsonrpc::proto::trans::{GetRequest, SendResponse, Request};
+use jsonrpc::proto::spec20::errors;
 
 fn echo(req: proto::Request) -> Response {
     Response::new(req.params, None, req.id)
@@ -30,7 +31,7 @@ fn dispatcher(req: proto::Request) -> Response {
         "echo" => echo(req),
         "add" => add(req),
         _ => Response::new(None,
-                           Some(ProtocolError::new(-32601, "Method not found".to_owned(), None).to_json()),
+                           Some(errors::MethodNotFound::new().to_json()),
                            req.id)
     }
 }

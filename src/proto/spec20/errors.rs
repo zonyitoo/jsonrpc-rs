@@ -59,6 +59,22 @@ pub mod InvalidRequest {
 }
 
 #[allow(non_snake_case)]
+pub mod MethodNotFound {
+    use rustc_serialize::json::Json;
+    use proto::ProtocolError;
+
+    use super::*;
+
+    pub fn new() -> ProtocolError {
+        with_detail(None)
+    }
+
+    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_METHOD_NOT_FOUND, "Method not found".to_owned(), detail)
+    }
+}
+
+#[allow(non_snake_case)]
 pub mod InvalidParams {
     use rustc_serialize::json::Json;
     use proto::ProtocolError;
