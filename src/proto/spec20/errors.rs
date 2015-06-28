@@ -28,94 +28,94 @@ pub const ERRCODE_INTERNAL_ERROR: i64 = -32603;
 
 #[allow(non_snake_case)]
 pub mod ParseError {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     use super::*;
 
     pub fn new() -> ProtocolError {
-        with_detail(None)
+        with_detail(None::<Json>)
     }
 
-    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
         ProtocolError::new(ERRCODE_PARSE_ERROR, "Parse error".to_owned(), detail)
     }
 }
 
 #[allow(non_snake_case)]
 pub mod InvalidRequest {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     use super::*;
 
     pub fn new() -> ProtocolError {
-        with_detail(None)
+        with_detail(None::<Json>)
     }
 
-    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
         ProtocolError::new(ERRCODE_INVALID_REQUEST, "Invalid Request".to_owned(), detail)
     }
 }
 
 #[allow(non_snake_case)]
 pub mod MethodNotFound {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     use super::*;
 
     pub fn new() -> ProtocolError {
-        with_detail(None)
+        with_detail(None::<Json>)
     }
 
-    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
         ProtocolError::new(ERRCODE_METHOD_NOT_FOUND, "Method not found".to_owned(), detail)
     }
 }
 
 #[allow(non_snake_case)]
 pub mod InvalidParams {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     use super::*;
 
     pub fn new() -> ProtocolError {
-        with_detail(None)
+        with_detail(None::<Json>)
     }
 
-    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
         ProtocolError::new(ERRCODE_INVALID_PARAMS, "Invalid params".to_owned(), detail)
     }
 }
 
 #[allow(non_snake_case)]
 pub mod InternalError {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     use super::*;
 
     pub fn new() -> ProtocolError {
-        with_detail(None)
+        with_detail(None::<Json>)
     }
 
-    pub fn with_detail(detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
         ProtocolError::new(ERRCODE_INTERNAL_ERROR, "Internal error".to_owned(), detail)
     }
 }
 
 #[allow(non_snake_case)]
 pub mod ServerError {
-    use rustc_serialize::json::Json;
+    use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
     pub fn new(code: i64) -> ProtocolError {
-        with_detail(code, None)
+        with_detail(code, None::<Json>)
     }
 
-    pub fn with_detail(code: i64, detail: Option<Json>) -> ProtocolError {
+    pub fn with_detail<D: ToJson>(code: i64, detail: Option<D>) -> ProtocolError {
         assert!(code <= -32000 && code >= -32099, "ServerError code must be in [-32099, -32000]");
 
         ProtocolError::new(code, "Server error".to_owned(), detail)

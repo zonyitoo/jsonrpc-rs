@@ -38,12 +38,16 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(method: String, params: Option<Json>, id: Json) -> Request {
+    pub fn new<P: ToJson, I: ToJson>(method: String, params: Option<P>, id: I) -> Request {
         Request {
             method: method,
-            params: params,
-            id: id,
+            params: params.map(|p| p.to_json()),
+            id: id.to_json(),
         }
+    }
+
+    pub fn without_params<I: ToJson>(method: String, id: I) -> Request {
+        Request::new(method, None::<Json>, id)
     }
 }
 
@@ -68,11 +72,11 @@ impl ToJson for ProtocolError {
 }
 
 impl ProtocolError {
-    pub fn new(code: i64, message: String, data: Option<Json>) -> ProtocolError {
+    pub fn new<D: ToJson>(code: i64, message: String, data: Option<D>) -> ProtocolError {
         ProtocolError {
             code: code,
             message: message,
-            data: data,
+            data: data.map(|d| d.to_json()),
         }
     }
 }
@@ -85,12 +89,20 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new(result: Option<Json>, error: Option<Json>, id: Json) -> Response {
+    pub fn new<R: ToJson, E: ToJson, I: ToJson>(result: Option<R>, error: Option<E>, id: I) -> Response {
         Response {
-            result: result,
-            error: error,
-            id: id,
+            result: result.map(|r| r.to_json()),
+            error: error.map(|e| e.to_json()),
+            id: id.to_json(),
         }
+    }
+
+    pub fn result<R: ToJson, I: ToJson>(result: R, id: I) -> Response {
+        Response::new(Some(result), None::<Json>, id)
+    }
+
+    pub fn error<E: ToJson, I: ToJson>(err: E, id: I) -> Response {
+        Response::new(None::<Json>, Some(err), id)
     }
 }
 
@@ -143,35 +155,37 @@ pub enum Error {
 
 impl Error {
     pub fn to_protocol_error(&self) -> ProtocolError {
+        use proto::spec20::errors;
+
         match self {
             &Error::IoError(ref err) => {
-                ProtocolError::new(-32000, "I/O error".to_owned(),
+                errors::ServerError::with_detail(-32000,
                     Some(Json::String(<io::Error as ::std::error::Error>::description(&err).to_owned())))
             },
             &Error::EncoderError(ref err) => {
-                ProtocolError::new(-32001, "Encoder error".to_owned(),
+                errors::ServerError::with_detail(-32001,
                     Some(Json::String(<EncoderError as ::std::error::Error>::description(&err).to_owned())))
             },
             &Error::ParserError(ref err) => {
-                ProtocolError::new(-32700, "Parse error".to_owned(),
-                    Some(Json::String(<ParserError as ::std::error::Error>::description(&err).to_owned())))
+                let detail = Some(Json::String(<ParserError as ::std::error::Error>::description(&err).to_owned()));
+                errors::ParseError::with_detail(detail)
             },
             &Error::ProtocolError(ref err) => err.clone(),
             &Error::InternalError(ref err) => {
                 match err.kind() {
                     InternalErrorKind::InvalidVersion
                         | InternalErrorKind::InvalidRequest => {
-                        ProtocolError::new(-32600, "Invalid Request".to_owned(), None)
+                        errors::InvalidRequest::with_detail(err.detail().map(|s| s.to_owned()))
                     },
                     InternalErrorKind::InvalidResponse => {
-                        ProtocolError::new(-32603, "Internal error".to_owned(), None)
+                        errors::InternalError::with_detail(err.detail().map(|s| s.to_owned()))
                     },
                     InternalErrorKind::MethodNotFound => {
-                        ProtocolError::new(-32601, "Method not found".to_owned(), None)
+                        errors::MethodNotFound::with_detail(err.detail().map(|s| s.to_owned()))
                     }
                 }
             },
-            &Error::NotUtf8 => ProtocolError::new(-32600, "Invalid Request".to_owned(), None)
+            &Error::NotUtf8 => errors::InvalidRequest::new()
         }
     }
 }

@@ -4,7 +4,7 @@ extern crate bufstream;
 
 use std::net::TcpListener;
 
-use rustc_serialize::json::{Json, ToJson};
+use rustc_serialize::json::Json;
 
 use bufstream::BufStream;
 
@@ -13,49 +13,39 @@ use jsonrpc::proto::trans::{GetRequest, SendResponse, ClientRequest};
 use jsonrpc::proto::spec20::errors;
 
 fn echo(req: proto::Request) -> Response {
-    Response::new(req.params, None, req.id)
+    Response::result(req.params, req.id)
 }
 
 fn add(req: proto::Request) -> Response {
     let params = match req.params {
         Some(Json::Array(ref p)) if p.len() == 2 => p,
         _ => {
-            return Response::new(None,
-                                 Some(errors::InvalidParams::new().to_json()),
-                                 req.id);
+            return Response::error(errors::InvalidParams::new(), req.id);
         }
     };
 
     let a = match params[0].as_i64() {
         Some(x) => x,
         None => {
-            return Response::new(None,
-                                 Some(errors::InvalidParams::new().to_json()),
-                                 req.id);
+            return Response::error(errors::InvalidParams::new(), req.id);
         }
     };
 
     let b = match params[1].as_i64() {
         Some(x) => x,
         None => {
-            return Response::new(None,
-                                 Some(errors::InvalidParams::new().to_json()),
-                                 req.id);
+            return Response::error(errors::InvalidParams::new(), req.id);
         }
     };
 
-    Response::new(Some(Json::I64(a + b)),
-                  None,
-                  req.id)
+    Response::result(Json::I64(a + b), req.id)
 }
 
 fn dispatcher(req: proto::Request) -> Response {
     match &req.method[..] {
         "echo" => echo(req),
         "add" => add(req),
-        _ => Response::new(None,
-                           Some(errors::MethodNotFound::new().to_json()),
-                           req.id)
+        _ => Response::error(errors::MethodNotFound::new(), req.id)
     }
 }
 

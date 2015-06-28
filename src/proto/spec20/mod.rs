@@ -104,7 +104,7 @@ mod test {
     fn test_spec20_server_response() {
         let result: Json = Json::String("pong".to_owned());
 
-        let response = Response::new(Some(result), None, Json::U64(1));
+        let response = Response::new(Some(result), None::<Json>, Json::U64(1));
 
         let mut buf = Cursor::new(vec![]);
 
