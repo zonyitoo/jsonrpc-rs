@@ -18,5 +18,5 @@ fern = "*"
 
 [dependencies.rustc-serialize]
 #git = "https://github.com/rust-lang/rustc-serialize.git"
-#git = "https://github.com/zonyitoo/rustc-serialize.git"
-path = "/Users/zonyitoo/Projects/rustc-serialize"
+git = "https://github.com/zonyitoo/rustc-serialize.git"
+#path = "/Users/zonyitoo/Projects/rustc-serialize"
