@@ -18,8 +18,22 @@ fn echo(req: proto::Request) -> Response {
 
 fn add(req: proto::Request) -> Response {
     let params = req.params.unwrap();
-    let a = params[0].as_i64().unwrap();
-    let b = params[1].as_i64().unwrap();
+    let a = match params[0].as_i64() {
+        Some(x) => x,
+        None => {
+            return Response::new(None,
+                                 Some(errors::InvalidParams::new().to_json()),
+                                 req.id);
+        }
+    };
+    let b = match params[1].as_i64() {
+        Some(x) => x,
+        None => {
+            return Response::new(None,
+                                 Some(errors::InvalidParams::new().to_json()),
+                                 req.id);
+        }
+    };
 
     Response::new(Some(Json::I64(a + b)),
                   None,
