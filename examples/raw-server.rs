@@ -9,7 +9,7 @@ use rustc_serialize::json::{Json, ToJson};
 use bufstream::BufStream;
 
 use jsonrpc::proto::{self, Response, Server};
-use jsonrpc::proto::trans::{GetRequest, SendResponse, Request};
+use jsonrpc::proto::trans::{GetRequest, SendResponse, ClientRequest};
 use jsonrpc::proto::spec20::errors;
 
 fn echo(req: proto::Request) -> Response {
@@ -70,11 +70,11 @@ fn main() {
 
         loop {
             match server.get_request() {
-                Ok(Request::Single(req)) => {
+                Ok(ClientRequest::Single(req)) => {
                     let resp = dispatcher(req);
                     server.response(resp).unwrap();
                 },
-                Ok(Request::Batch(reqs)) => {
+                Ok(ClientRequest::Batch(reqs)) => {
                     let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
                     server.batch_response(resps).unwrap();
                 },

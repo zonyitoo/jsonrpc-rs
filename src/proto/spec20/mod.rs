@@ -64,7 +64,7 @@ mod test {
     use std::io::{Cursor, Write, Seek, SeekFrom};
 
     use proto::{Request, Response};
-    use proto::trans::{self, SendRequest, GetRequest, GetResponse, SendResponse};
+    use proto::trans::{ClientRequest, ServerResponse, SendRequest, GetRequest, GetResponse, SendResponse};
 
     use rustc_serialize::json::{Array, Json};
 
@@ -97,7 +97,7 @@ mod test {
             server.get_request().unwrap()
         };
 
-        assert_eq!(trans::Request::Single(request), request_svr);
+        assert_eq!(ClientRequest::Single(request), request_svr);
     }
 
     #[test]
@@ -122,6 +122,6 @@ mod test {
             client.get_response().unwrap()
         };
 
-        assert_eq!(trans::Response::Single(response), response_cli);
+        assert_eq!(ServerResponse::Single(response), response_cli);
     }
 }
