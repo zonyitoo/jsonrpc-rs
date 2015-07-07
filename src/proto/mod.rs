@@ -56,6 +56,14 @@ impl Request {
     pub fn without_params<I: ToJson>(method: String, id: Option<I>) -> Request {
         Request::new(method, None::<Json>, id)
     }
+
+    pub fn new_notify<P: ToJson>(method: String, params: Option<P>) -> Request {
+        Request {
+            method: method,
+            params: params.map(|p| p.to_json()),
+            id: None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
