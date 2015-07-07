@@ -32,19 +32,28 @@ pub mod trans;
 pub struct Request {
     pub method: String,
     pub params: Option<Json>,
-    pub id: Json,
+    pub id: Option<Json>,
 }
 
 impl Request {
-    pub fn new<P: ToJson, I: ToJson>(method: String, params: Option<P>, id: I) -> Request {
-        Request {
-            method: method,
-            params: params.map(|p| p.to_json()),
-            id: id.to_json(),
+    pub fn new<P: ToJson, I: ToJson>(method: String, params: Option<P>, id: Option<I>) -> Request {
+        if let Some(i) = id {
+            Request {
+                method: method,
+                params: params.map(|p| p.to_json()),
+                id: Some(i.to_json())
+            }
+        } else {
+            Request {
+                method: method,
+                params: params.map(|p| p.to_json()),
+                id: None
+            }
         }
+
     }
 
-    pub fn without_params<I: ToJson>(method: String, id: I) -> Request {
+    pub fn without_params<I: ToJson>(method: String, id: Option<I>) -> Request {
         Request::new(method, None::<Json>, id)
     }
 }

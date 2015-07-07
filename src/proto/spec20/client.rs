@@ -130,7 +130,9 @@ fn request_to_json(request: Request) -> Json {
     if let Some(params) = request.params {
         obj.insert("params".to_owned(), params);
     }
-    obj.insert("id".to_owned(), request.id);
+    if let Some(id) = request.id {
+        obj.insert("id".to_owned(), id);
+    }
 
     Json::Object(obj)
 }

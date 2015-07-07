@@ -44,7 +44,8 @@ fn main() {
                                    Some(Json::Array(vec![
                                         Json::String("ping".to_owned()),
                                    ])),
-                                   Json::U64(generate_id()));
+                                   Some(Json::U64(generate_id())));
+
         debug!("Request: {:?}", request);
 
         client.request(request).unwrap();
@@ -60,7 +61,7 @@ fn main() {
                                             Json::U64(1),
                                             Json::U64(2),
                                         ])),
-                                   Json::U64(generate_id()));
+                                   Some(Json::U64(generate_id())));
         debug!("Request: {:?}", request);
 
         client.request(request).unwrap();
@@ -76,7 +77,7 @@ fn main() {
                          Some(Json::Array(vec![
                             Json::String("ping".to_owned()),
                          ])),
-                         Json::U64(generate_id()))
+                         Some(Json::U64(generate_id())))
         }).collect::<Vec<Request>>();
         debug!("Request: {:?}", requests);
 

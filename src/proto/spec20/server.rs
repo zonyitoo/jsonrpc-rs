@@ -160,15 +160,7 @@ fn json_to_request(mut obj: json::Object) -> proto::Result<Request> {
 
     let params = obj.remove("params");
 
-    let id = match obj.remove("id") {
-        Some(id) => id,
-        None => {
-            let ierr = InternalError::new(InternalErrorKind::InvalidRequest,
-                                          "`id` is required",
-                                          None);
-            return Err(proto::Error::InternalError(ierr));
-        }
-    };
+    let id = obj.remove("id");
 
     Ok(Request::new(method, params, id))
 }
