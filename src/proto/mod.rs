@@ -37,18 +37,10 @@ pub struct Request {
 
 impl Request {
     pub fn new<P: ToJson, I: ToJson>(method: String, params: Option<P>, id: Option<I>) -> Request {
-        if let Some(i) = id {
-            Request {
+        Request {
                 method: method,
                 params: params.map(|p| p.to_json()),
-                id: Some(i.to_json())
-            }
-        } else {
-            Request {
-                method: method,
-                params: params.map(|p| p.to_json()),
-                id: None
-            }
+                id: id.map(|i| i.to_json())
         }
 
     }
