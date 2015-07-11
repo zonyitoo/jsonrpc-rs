@@ -71,22 +71,22 @@ fn main() {
         debug!("Response: {:?}", response);
     }
 
-    {
-        let requests = (0..3).map(|_| {
-            Request::new("echo".to_owned(),
-                         Some(Json::Array(vec![
-                            Json::String("ping".to_owned()),
-                         ])),
-                         Some(Json::U64(generate_id())))
-        }).collect::<Vec<Request>>();
-        debug!("Request: {:?}", requests);
+    // {
+    //     let requests = (0..3).map(|_| {
+    //         Request::new("echo".to_owned(),
+    //                      Some(Json::Array(vec![
+    //                         Json::String("ping".to_owned()),
+    //                      ])),
+    //                      Some(Json::U64(generate_id())))
+    //     }).collect::<Vec<Request>>();
+    //     debug!("Request: {:?}", requests);
 
-        client.batch_request(requests).unwrap();
+    //     client.batch_request(requests).unwrap();
 
-        let response = client.get_response();
+    //     let response = client.get_response();
 
-        debug!("Response: {:?}", response);
-    }
+    //     debug!("Response: {:?}", response);
+    // }
 
     {
         let request = Request::new_notify("notify".to_owned(),

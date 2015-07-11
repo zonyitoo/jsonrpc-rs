@@ -48,13 +48,13 @@ fn add(req: Request) -> Response {
     Response::result(Json::I64(a + b), req.id)
 }
 
-fn dispatcher(req: Request) -> Response {
+fn dispatcher(req: Request) -> Option<Response> {
     debug!("Dispatching for request: {:?}", req);
     match &req.method[..] {
-        "echo" => echo(req),
-        "add" => add(req),
-        "notify" => Response::result(Json::I64(0), 0),
-        _ => Response::error(errors::MethodNotFound::new(), req.id)
+        "echo" => Some(echo(req)),
+        "add" => Some(add(req)),
+        "notify" => None,
+        _ => Some(Response::error(errors::MethodNotFound::new(), req.id))
     }
 }
 
@@ -86,14 +86,22 @@ fn main() {
                     match server.get_request() {
                         Ok(Some(ClientRequest::Single(req))) => {
                             let resp = dispatcher(req);
-                            debug!("Send response to {:?}: {:?}", peer_addr, resp);
-                            server.response(resp).unwrap();
+                            match resp {
+                                Some(res) => {
+                                    debug!("Send response to {:?}: {:?}", peer_addr, res);
+                                    server.response(res).unwrap();
+                                }
+                                None => {
+                                    debug!("It's a notify");
+                                }
+                            }
+
                         },
-                        Ok(Some(ClientRequest::Batch(reqs))) => {
-                            let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
-                            debug!("Send response to {:?}: {:?}", peer_addr, resps);
-                            server.batch_response(resps).unwrap();
-                        },
+                        // Ok(Some(ClientRequest::Batch(reqs))) => {
+                        //     // let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
+                        //     // debug!("Send response to {:?}: {:?}", peer_addr, resps);
+                        //     // server.batch_response(resps).unwrap();
+                        // },
                         Ok(None) => {
                             // EOF
                             break;
