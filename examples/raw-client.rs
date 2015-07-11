@@ -87,4 +87,18 @@ fn main() {
 
         debug!("Response: {:?}", response);
     }
+
+    {
+        let request = Request::new_notify("notify".to_owned(),
+                                          Some(Json::Array(vec![
+                                                    Json::U64(1),
+                                                    Json::U64(2),
+                                               ])));
+        debug!("Request: {:?}", request);
+        client.request(request).unwrap();
+
+        let response = client.get_response();
+
+        debug!("Response: {:?}", response);
+    }
 }

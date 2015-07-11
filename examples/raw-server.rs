@@ -53,6 +53,7 @@ fn dispatcher(req: Request) -> Response {
     match &req.method[..] {
         "echo" => echo(req),
         "add" => add(req),
+        "notify" => Response::result(Json::I64(0), 0),
         _ => Response::error(errors::MethodNotFound::new(), req.id)
     }
 }
