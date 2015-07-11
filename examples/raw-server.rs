@@ -97,11 +97,21 @@ fn main() {
                             }
 
                         },
-                        // Ok(Some(ClientRequest::Batch(reqs))) => {
-                        //     // let resps = reqs.into_iter().map(|r| dispatcher(r)).collect::<Vec<Response>>();
-                        //     // debug!("Send response to {:?}: {:?}", peer_addr, resps);
-                        //     // server.batch_response(resps).unwrap();
-                        // },
+                        Ok(Some(ClientRequest::Batch(reqs))) => {
+                            let resps = reqs.into_iter().map(|r| dispatcher(r)).
+                                collect::<Vec<Option<Response>>>();
+
+                            let mut final_response = vec![];
+                            for res in resps {
+                                match res {
+                                    Some(rr) => final_response.push(rr),
+                                    None => debug!("no notify response")
+                                }
+                            }
+
+                            debug!("Send response to {:?}: {:?}", peer_addr, final_response);
+                            server.batch_response(final_response).unwrap();
+                        },
                         Ok(None) => {
                             // EOF
                             break;
