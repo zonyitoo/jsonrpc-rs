@@ -33,12 +33,16 @@ pub mod ParseError {
 
     use super::*;
 
-    pub fn new() -> ProtocolError {
-        with_detail(None::<Json>)
+    fn create<D: ToJson>(detail: Option<D>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_PARSE_ERROR, "Parse error".to_owned(), detail)
     }
 
-    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
-        ProtocolError::new(ERRCODE_PARSE_ERROR, "Parse error".to_owned(), detail)
+    pub fn new() -> ProtocolError {
+        create(None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(detail: D) -> ProtocolError {
+        create(Some(detail))
     }
 }
 
@@ -49,12 +53,16 @@ pub mod InvalidRequest {
 
     use super::*;
 
-    pub fn new() -> ProtocolError {
-        with_detail(None::<Json>)
+    fn create<D: ToJson>(detail: Option<D>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_INVALID_REQUEST, "Invalid Request".to_owned(), detail)
     }
 
-    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
-        ProtocolError::new(ERRCODE_INVALID_REQUEST, "Invalid Request".to_owned(), detail)
+    pub fn new() -> ProtocolError {
+        create(None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(detail: D) -> ProtocolError {
+        create(Some(detail))
     }
 }
 
@@ -65,12 +73,16 @@ pub mod MethodNotFound {
 
     use super::*;
 
-    pub fn new() -> ProtocolError {
-        with_detail(None::<Json>)
+    fn create<D: ToJson>(detail: Option<D>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_METHOD_NOT_FOUND, "Method not found".to_owned(), detail)
     }
 
-    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
-        ProtocolError::new(ERRCODE_METHOD_NOT_FOUND, "Method not found".to_owned(), detail)
+    pub fn new() -> ProtocolError {
+        create(None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(detail: D) -> ProtocolError {
+        create(Some(detail))
     }
 }
 
@@ -81,12 +93,16 @@ pub mod InvalidParams {
 
     use super::*;
 
-    pub fn new() -> ProtocolError {
-        with_detail(None::<Json>)
+    fn create<D: ToJson>(detail: Option<D>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_INVALID_PARAMS, "Invalid params".to_owned(), detail)
     }
 
-    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
-        ProtocolError::new(ERRCODE_INVALID_PARAMS, "Invalid params".to_owned(), detail)
+    pub fn new() -> ProtocolError {
+        create(None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(detail: D) -> ProtocolError {
+        create(Some(detail))
     }
 }
 
@@ -97,12 +113,16 @@ pub mod InternalError {
 
     use super::*;
 
-    pub fn new() -> ProtocolError {
-        with_detail(None::<Json>)
+    pub fn create<D: ToJson>(detail: Option<D>) -> ProtocolError {
+        ProtocolError::new(ERRCODE_INTERNAL_ERROR, "Internal error".to_owned(), detail)
     }
 
-    pub fn with_detail<D: ToJson>(detail: Option<D>) -> ProtocolError {
-        ProtocolError::new(ERRCODE_INTERNAL_ERROR, "Internal error".to_owned(), detail)
+    pub fn new() -> ProtocolError {
+        create(None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(detail: D) -> ProtocolError {
+        create(Some(detail))
     }
 }
 
@@ -111,13 +131,17 @@ pub mod ServerError {
     use rustc_serialize::json::{ToJson, Json};
     use proto::ProtocolError;
 
-    pub fn new(code: i64) -> ProtocolError {
-        with_detail(code, None::<Json>)
-    }
-
-    pub fn with_detail<D: ToJson>(code: i64, detail: Option<D>) -> ProtocolError {
+    pub fn create<D: ToJson>(code: i64, detail: Option<D>) -> ProtocolError {
         assert!(code <= -32000 && code >= -32099, "ServerError code must be in [-32099, -32000]");
 
         ProtocolError::new(code, "Server error".to_owned(), detail)
+    }
+
+    pub fn new(code: i64) -> ProtocolError {
+        create(code, None::<Json>)
+    }
+
+    pub fn with_detail<D: ToJson>(code: i64, detail: D) -> ProtocolError {
+        create(code, Some(detail))
     }
 }

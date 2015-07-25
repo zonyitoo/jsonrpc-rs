@@ -3,12 +3,14 @@ extern crate rustc_serialize;
 #[macro_use]
 extern crate log;
 
-use rustc_serialize::Encodable;
+use rustc_serialize::json::ToJson;
 
-pub use error::{Error, RpcError};
+pub use error::Error;
 
 pub mod error;
 pub mod proto;
 // pub mod client;
 
-pub type RpcResult<T: Encodable> = Result<T, Error>;
+pub type RpcResult<T: ToJson> = Result<T, Error>;
+
+pub type RpcServerResult<T: ToJson> = Result<T, proto::ProtocolError>;
