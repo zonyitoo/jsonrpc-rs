@@ -25,7 +25,7 @@ use std::convert::From;
 
 use rustc_serialize::json::{Object, EncoderError, ParserError, Json, ToJson};
 
-pub mod spec20;
+pub mod spec;
 pub mod trans;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,7 +162,7 @@ pub enum Error {
 
 impl Error {
     pub fn to_protocol_error(&self) -> ProtocolError {
-        use proto::spec20::errors;
+        use proto::spec::errors;
 
         match self {
             &Error::IoError(ref err) => {

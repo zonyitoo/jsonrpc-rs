@@ -31,7 +31,7 @@ pub mod client;
 pub mod server;
 pub mod errors;
 
-fn check_version(obj: &json::Object) -> proto::Result<()> {
+pub fn check_version(obj: &json::Object) -> proto::Result<()> {
     match obj.get("jsonrpc") {
         None => {
             let ierr = InternalError::new(InternalErrorKind::InvalidVersion,

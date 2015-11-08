@@ -30,7 +30,7 @@ use proto::{self, Request, Response};
 use proto::{InternalErrorKind, InternalError};
 use proto::trans::{ClientRequest, GetRequest, SendResponse};
 
-use proto::spec20::check_version;
+use proto::spec::check_version;
 
 pub struct ServerStream<'a, S: Read + Write + 'a> {
     stream: &'a mut S,
